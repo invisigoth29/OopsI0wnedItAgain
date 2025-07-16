@@ -2,26 +2,24 @@
 
 A mildly unstable red team playbook for when you need a foothold, but also a laugh.
 
-## 💥 What’s Inside
+## 📦 What's Inside
 
-This repo is a full-phase penetration testing framework — checklists, tool sets, and tactical notes across all the juicy phases:
+Full-scope pentest framework with organized folders and checklists for every phase, plus a script to auto-deploy project scaffolds.
 
-- 🔍 Scoping & Planning
-- 🕵️ Recon (passive + active)
-- 📡 Enumeration
-- 🎯 Exploitation
-- 🧠 Post-Exploitation & Lateral Movement
-- 📓 Reporting (a.k.a. The Cover Your Ass Phase)
+## 💻 Pentest Project Launcher
 
-## ⚙️ Who's It For?
+Use `scripts/init_pentest_project.py` to generate a local pentest project with:
+- Phase folders
+- Markdown checklists
+- Loot, screenshots, and artifacts directories
+- Auto-generated `.gitignore` for safety
 
-- Red teamers with chaos in their heart ❤️
-- Pentesters who document (begrudgingly)
-- Homelab hackers trying to level up
-- People who like root and bad puns
+```bash
+python3 scripts/init_pentest_project.py
+```
+
+✅ Use this to create `/projects/engagement-name/` locally — safely outside Git tracking.
 
 ## 🚨 Use Responsibly
 
-All scripts, checklists, and tools are for authorized testing environments only. Unless you want to hear from Britney *and* legal.
-
-> “Oops... I scanned it again.” – you, after `nmap -A 10.0.0.1/24`
+> "Oops... I scanned it again." — You, probably.
