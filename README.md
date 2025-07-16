@@ -21,5 +21,8 @@ python3 scripts/init_pentest_project.py
 ✅ Use this to create `/projects/engagement-name/` locally — safely outside Git tracking.
 
 ## 🚨 Use Responsibly
-
+Only use this repo in environments where you have **explicit authorization** to test. This is not legal advice. If you misuse it, Britney will not save you.
 > "Oops... I scanned it again." — You, probably.
+![Red Team Certified](https://img.shields.io/badge/red--team-certified-critical)
+![Built with ADHD](https://img.shields.io/badge/focus-optional-blueviolet)
+![OopsAllPayloads](https://img.shields.io/badge/oops-all--payloads-red)
