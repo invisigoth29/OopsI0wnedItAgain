@@ -151,15 +151,22 @@ enumerate_subdomains() {
         echo "[*] Phase 1: Subdomain Enumeration"
         run "Running subfinder" "subfinder -dL '$targets' -silent -o '$workspace/subdomains/subdomains.txt'"
         # Resolve hosts using dnsx
-        dnsx -l "$workspace/subdomains/subdomains.txt" -silent -o "$workspace/subdomains/resolved.txt"
-        # Prepare hosts-only list for HTTP probing
-        cp "$workspace/subdomains/resolved.txt" "$workspace/subdomains/hosts.txt"
-        echo "[+] Found $(wc -l < "$workspace/subdomains/subdomains.txt") subdomains"
-        echo "[+] Resolved hosts: $(wc -l < "$workspace/subdomains/resolved.txt")"
-        httpx_scan
+        if [ -s "$workspace/subdomains/subdomains.txt" ]; then
+            dnsx -l "$workspace/subdomains/subdomains.txt" -silent -o "$workspace/subdomains/resolved.txt"
+            # Prepare hosts-only list for HTTP probing and uncover
+            cp "$workspace/subdomains/resolved.txt" "$workspace/subdomains/hosts.txt"
+            echo "[+] Found $(wc -l < "$workspace/subdomains/subdomains.txt") subdomains"
+            echo "[+] Resolved hosts: $(wc -l < "$workspace/subdomains/resolved.txt")"
+            httpx_scan
+        else
+            echo "[!] No subdomains found"
+        fi
     else
+        # For IP targets, create both targets.txt and hosts.txt for compatibility
         cp "$targets" "$workspace/subdomains/targets.txt"
+        cp "$targets" "$workspace/subdomains/hosts.txt"
         echo "[*] Skipping subdomain enumeration for IP targets"
+        echo "[+] IP targets: $(wc -l < "$workspace/subdomains/targets.txt")"
     fi
 }
 
