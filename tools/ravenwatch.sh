@@ -191,15 +191,15 @@ enumerate_subdomains() {
 # ===== Port Scanning Phase =====
 naabu_scan() {
     local target="$1"
-    echo "[*] Port scanning $target with naabu (top 1000 ports)"
+    echo "[*] Port scanning $target with naabu (all 65535 ports)"
     
     if ! command -v naabu &> /dev/null; then
         echo "[!] naabu not installed, skipping port scan for $target"
         return 1
     fi
     
-    # Run naabu on top 1000 ports with JSON output for better parsing
-    if naabu -host "$target" -top-ports 1000 -silent -json -o "$workspace/ports/naabu_${target//[.:\/]/_}.json" 2>>"$error_log"; then
+    # Run naabu on all ports (1-65535) with JSON output for better parsing
+    if naabu -host "$target" -p - -silent -json -o "$workspace/ports/naabu_${target//[.:\/]/_}.json" 2>>"$error_log"; then
         # Convert JSON to simple host:port format and append to main results
         if [ -s "$workspace/ports/naabu_${target//[.:\/]/_}.json" ]; then
             jq -r '.host + ":" + (.port|tostring)' "$workspace/ports/naabu_${target//[.:\/]/_}.json" 2>/dev/null >> "$workspace/ports/open_ports.txt" || {
@@ -283,11 +283,17 @@ uncover_scan() {
     
     # Overall guidance
     if [ ! -s "$workspace/uncover_results.txt" ] && [ ! -s "$workspace/ports/open_ports.txt" ]; then
-        echo "[!] No results from OSINT or port scanning. This is normal if:"
+        echo "[!] No results from OSINT or port scanning. This could mean:"
         echo "    - Targets are private/internal IPs not indexed by search engines"
         echo "    - Domains/IPs are new or low-profile"
         echo "    - Services are filtered or behind firewalls"
-        echo "    - No API keys configured for Shodan/Netlas/Hunter (using free tier)"
+        echo "    - No API keys configured for Shodan/Netlas/Hunter (free tier has limited data)"
+        echo "    - Rate limiting from OSINT APIs"
+        echo "    - Network connectivity or permission issues"
+        echo ""
+        echo "[*] To improve OSINT results, configure API keys:"
+        echo "    - Shodan API: ~/.config/uncover/provider-config.yaml"
+        echo "    - See: https://github.com/projectdiscovery/uncover#provider-configuration"
         echo "    - Check $error_log for error details if needed"
     fi
 }
