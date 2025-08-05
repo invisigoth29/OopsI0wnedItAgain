@@ -213,24 +213,31 @@ uncover_scan() {
 
     echo "[*] Processing $(wc -l < "$input_file") targets with uncover..."
     
+    result_count=0
     while read -r host; do
         # Skip empty lines
         [ -z "$host" ] && continue
         
         echo "[*] Running uncover on $host"
-        if ! uncover -q "$host" -e shodan,netlas,hunter -silent >> "$workspace/uncover_results.txt" 2>>"$error_log"; then
-            echo "[!] uncover failed for $host (check $error_log for details)"
+        temp_results=$(uncover -q "$host" -e shodan,netlas,hunter -silent 2>>"$error_log")
+        if [ -n "$temp_results" ]; then
+            echo "$temp_results" >> "$workspace/uncover_results.txt"
+            result_count=$((result_count + 1))
+            echo "[+] Found results for $host"
+        else
+            echo "[-] No results for $host in OSINT databases"
         fi
     done < "$input_file"
 
     if [ ! -s "$workspace/uncover_results.txt" ]; then
-        echo "[!] uncover returned no results. This could mean:"
-        echo "    - No API keys configured for Shodan/Netlas/Hunter"
-        echo "    - Targets not found in search engines"
+        echo "[!] No OSINT results found for any targets. This is normal if:"
+        echo "    - Targets are private/internal IPs not indexed by search engines"
+        echo "    - Domains/IPs are new or low-profile"
+        echo "    - No API keys configured for Shodan/Netlas/Hunter (using free tier)"
         echo "    - Network connectivity issues"
-        echo "    - Check $error_log for error details"
+        echo "    - Check $error_log for error details if needed"
     else
-        echo "[+] Uncover results: $(wc -l < "$workspace/uncover_results.txt") entries saved to $workspace/uncover_results.txt"
+        echo "[+] Uncover results: $(wc -l < "$workspace/uncover_results.txt") entries from $result_count targets saved to $workspace/uncover_results.txt"
     fi
 }
 
