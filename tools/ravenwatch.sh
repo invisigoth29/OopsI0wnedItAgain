@@ -155,7 +155,7 @@ enumerate_subdomains() {
             # Get resolved domain names
             dnsx -l "$workspace/subdomains/subdomains.txt" -silent -o "$workspace/subdomains/resolved.txt"
             # Get IP addresses for uncover - extract IPs from dnsx response
-            dnsx -l "$workspace/subdomains/subdomains.txt" -silent -resp | grep -oE '\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\]' | tr -d '[]' | sort -u > "$workspace/subdomains/ips.txt"
+            dnsx -l "$workspace/subdomains/subdomains.txt" -silent -resp | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | sort -u > "$workspace/subdomains/ips.txt"
             
             # Create hosts.txt with both domains and IPs for maximum compatibility
             if [ -s "$workspace/subdomains/resolved.txt" ] && [ -s "$workspace/subdomains/ips.txt" ]; then
