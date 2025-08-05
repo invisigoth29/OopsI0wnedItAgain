@@ -171,15 +171,42 @@ uncover_scan() {
         return 0
     fi
 
+    # Determine input file based on what's available
+    input_file=""
+    if [ -s "$workspace/subdomains/hosts.txt" ]; then
+        input_file="$workspace/subdomains/hosts.txt"
+        echo "[*] Using resolved hosts from subdomain enumeration"
+    elif [ -s "$workspace/subdomains/targets.txt" ]; then
+        input_file="$workspace/subdomains/targets.txt"
+        echo "[*] Using direct IP targets"
+    elif [ -s "$targets" ]; then
+        input_file="$targets"
+        echo "[*] Using original input file"
+    else
+        echo "[!] No valid input file found for uncover scan. Skipping."
+        return 1
+    fi
+
+    echo "[*] Processing $(wc -l < "$input_file") targets with uncover..."
+    
     while read -r host; do
+        # Skip empty lines
+        [ -z "$host" ] && continue
+        
         echo "[*] Running uncover on $host"
-        uncover -q "$host" -e shodan,netlas,hunter -silent >> "$workspace/uncover_results.txt" 2>/dev/null
-    done < "$workspace/subdomains/hosts.txt"
+        if ! uncover -q "$host" -e shodan,netlas,hunter -silent >> "$workspace/uncover_results.txt" 2>>"$error_log"; then
+            echo "[!] uncover failed for $host (check $error_log for details)"
+        fi
+    done < "$input_file"
 
     if [ ! -s "$workspace/uncover_results.txt" ]; then
-        echo "[!] uncover returned no results."
+        echo "[!] uncover returned no results. This could mean:"
+        echo "    - No API keys configured for Shodan/Netlas/Hunter"
+        echo "    - Targets not found in search engines"
+        echo "    - Network connectivity issues"
+        echo "    - Check $error_log for error details"
     else
-        echo "[+] Uncover results saved to $workspace/uncover_results.txt"
+        echo "[+] Uncover results: $(wc -l < "$workspace/uncover_results.txt") entries saved to $workspace/uncover_results.txt"
     fi
 }
 
