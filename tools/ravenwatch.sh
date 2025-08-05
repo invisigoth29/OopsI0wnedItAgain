@@ -152,12 +152,29 @@ enumerate_subdomains() {
         run "Running subfinder" "subfinder -dL '$targets' -silent -o '$workspace/subdomains/subdomains.txt'"
         # Resolve hosts using dnsx
         if [ -s "$workspace/subdomains/subdomains.txt" ]; then
+            # Get resolved domain names
             dnsx -l "$workspace/subdomains/subdomains.txt" -silent -o "$workspace/subdomains/resolved.txt"
-            # Prepare hosts-only list for HTTP probing and uncover
-            cp "$workspace/subdomains/resolved.txt" "$workspace/subdomains/hosts.txt"
-            echo "[+] Found $(wc -l < "$workspace/subdomains/subdomains.txt") subdomains"
-            echo "[+] Resolved hosts: $(wc -l < "$workspace/subdomains/resolved.txt")"
-            httpx_scan
+            # Get IP addresses for uncover - extract IPs from dnsx response
+            dnsx -l "$workspace/subdomains/subdomains.txt" -silent -resp | grep -oE '\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\]' | tr -d '[]' | sort -u > "$workspace/subdomains/ips.txt"
+            
+            # Create hosts.txt with both domains and IPs for maximum compatibility
+            if [ -s "$workspace/subdomains/resolved.txt" ] && [ -s "$workspace/subdomains/ips.txt" ]; then
+                # Combine resolved domains and their IPs
+                cat "$workspace/subdomains/resolved.txt" "$workspace/subdomains/ips.txt" | sort -u > "$workspace/subdomains/hosts.txt"
+                echo "[+] Found $(wc -l < "$workspace/subdomains/subdomains.txt") subdomains"  
+                echo "[+] Resolved hosts: $(wc -l < "$workspace/subdomains/resolved.txt")"
+                echo "[+] Unique IPs: $(wc -l < "$workspace/subdomains/ips.txt")"
+                httpx_scan
+            elif [ -s "$workspace/subdomains/resolved.txt" ]; then
+                # Fallback to just resolved domains if IP extraction fails
+                cp "$workspace/subdomains/resolved.txt" "$workspace/subdomains/hosts.txt"
+                echo "[+] Found $(wc -l < "$workspace/subdomains/subdomains.txt") subdomains"
+                echo "[+] Resolved hosts: $(wc -l < "$workspace/subdomains/resolved.txt")"
+                echo "[!] Warning: Could not extract IP addresses, using domain names"
+                httpx_scan
+            else
+                echo "[!] No hosts resolved from subdomains"
+            fi
         else
             echo "[!] No subdomains found"
         fi
