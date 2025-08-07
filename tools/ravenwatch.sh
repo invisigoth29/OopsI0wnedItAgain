@@ -25,7 +25,7 @@ fi
 
 timestamp=$(date +"%Y-%m-%d_%H-%M-%S")
 workspace="recon_$timestamp"
-mkdir -p "$workspace"/{subdomains,ports,httpx}
+mkdir -p "$workspace"/{subdomains,httpx}
 
 error_log="$workspace/error.log"
 
@@ -69,9 +69,8 @@ tools=(
     github.com/projectdiscovery/subfinder/v2/cmd/subfinder
     github.com/projectdiscovery/dnsx/cmd/dnsx
     github.com/projectdiscovery/httpx/cmd/httpx
-    github.com/projectdiscovery/naabu/v2/cmd/naabu
 )
-tool_names=(subfinder dnsx httpx naabu)
+tool_names=(subfinder dnsx httpx)
 
 if ! command -v go &> /dev/null; then
     echo "[!] Go is not installed. Install Go to continue."
@@ -188,34 +187,6 @@ enumerate_subdomains() {
     fi
 }
 
-# ===== Port Scanning Phase =====
-naabu_scan() {
-    local target="$1"
-    echo "[*] Port scanning $target with naabu (all 65535 ports)"
-    
-    if ! command -v naabu &> /dev/null; then
-        echo "[!] naabu not installed, skipping port scan for $target"
-        return 1
-    fi
-    
-    # Run naabu on all ports (1-65535) with JSON output for better parsing
-    if naabu -host "$target" -p - -silent -json -o "$workspace/ports/naabu_${target//[.:\/]/_}.json" 2>>"$error_log"; then
-        # Convert JSON to simple host:port format and append to main results
-        if [ -s "$workspace/ports/naabu_${target//[.:\/]/_}.json" ]; then
-            jq -r '.host + ":" + (.port|tostring)' "$workspace/ports/naabu_${target//[.:\/]/_}.json" 2>/dev/null >> "$workspace/ports/open_ports.txt" || {
-                # Fallback if jq not available - extract manually
-                grep -o '"host":"[^"]*".*"port":[0-9]*' "$workspace/ports/naabu_${target//[.:\/]/_}.json" | \
-                sed 's/"host":"\([^"]*\)".*"port":\([0-9]*\)/\1:\2/' >> "$workspace/ports/open_ports.txt"
-            }
-            local port_count=$(wc -l < "$workspace/ports/naabu_${target//[.:\/]/_}.json")
-            echo "[+] Found $port_count open ports on $target"
-            return 0
-        fi
-    fi
-    
-    echo "[-] No open ports found on $target"
-    return 1
-}
 
 # ===== Uncover Phase =====
 uncover_scan() {
@@ -244,7 +215,6 @@ uncover_scan() {
     echo "[*] Processing $(wc -l < "$input_file") targets with uncover..."
     
     result_count=0
-    port_scan_count=0
     while read -r host; do
         # Skip empty lines
         [ -z "$host" ] && continue
@@ -258,12 +228,6 @@ uncover_scan() {
         else
             echo "[-] No results for $host in OSINT databases"
             
-            # If it's an IP address and no OSINT results, scan with naabu
-            if echo "$host" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
-                if naabu_scan "$host"; then
-                    port_scan_count=$((port_scan_count + 1))
-                fi
-            fi
         fi
     done < "$input_file"
 
@@ -274,16 +238,9 @@ uncover_scan() {
         echo "[+] Uncover results: $(wc -l < "$workspace/uncover_results.txt") entries from $result_count targets saved to $workspace/uncover_results.txt"
     fi
     
-    # Report port scan results
-    if [ -f "$workspace/ports/open_ports.txt" ] && [ -s "$workspace/ports/open_ports.txt" ]; then
-        echo "[+] Port scan results: $(wc -l < "$workspace/ports/open_ports.txt") open ports from $port_scan_count IPs saved to $workspace/ports/open_ports.txt"
-    elif [ "$port_scan_count" -gt 0 ]; then
-        echo "[!] Port scanned $port_scan_count IPs but found no open ports"
-    fi
-    
     # Overall guidance
-    if [ ! -s "$workspace/uncover_results.txt" ] && [ ! -s "$workspace/ports/open_ports.txt" ]; then
-        echo "[!] No results from OSINT or port scanning. This could mean:"
+    if [ ! -s "$workspace/uncover_results.txt" ]; then
+        echo "[!] No results from OSINT. This could mean:"
         echo "    - Targets are private/internal IPs not indexed by search engines"
         echo "    - Domains/IPs are new or low-profile"
         echo "    - Services are filtered or behind firewalls"
@@ -310,6 +267,5 @@ echo "    - Subdomains: $( [ -f "$workspace/subdomains/subdomains.txt" ] && wc -
 echo "    - Resolved hosts: $( [ -f "$workspace/subdomains/resolved.txt" ] && wc -l < "$workspace/subdomains/resolved.txt" || echo 0 )"
 echo "    - Live HTTP services: $( [ -f "$workspace/httpx/live.txt" ] && wc -l < "$workspace/httpx/live.txt" || echo 0 )"
 echo "    - Uncover results (OSINT): $( [ -f "$workspace/uncover_results.txt" ] && wc -l < "$workspace/uncover_results.txt" || echo 0 )"
-echo "    - Open ports (naabu): $( [ -f "$workspace/ports/open_ports.txt" ] && wc -l < "$workspace/ports/open_ports.txt" || echo 0 )"
 
 [ -s "$error_log" ] && echo "[!] Errors logged to: $error_log" || rm -f "$error_log"
